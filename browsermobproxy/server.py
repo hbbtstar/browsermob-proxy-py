@@ -1,5 +1,6 @@
 import os
 import platform
+import signal
 import socket
 import subprocess
 import time
@@ -110,6 +111,7 @@ class Server(RemoteServer):
 
         self.process = subprocess.Popen(self.command,
                                         stdout=self.log_file,
+                                        preexec_fn=os.setsid,
                                         stderr=subprocess.STDOUT)
         count = 0
         while not self._is_listening():
@@ -132,10 +134,11 @@ class Server(RemoteServer):
         """
         if self.process.poll() is not None:
             return
-
+        group_pid = os.getpgid(self.process.pid)
         try:
             self.process.kill()
             self.process.wait()
+            os.killpg(group_pid, signal.SIGINT)
         except AttributeError:
             # kill may not be available under windows environment
             pass
